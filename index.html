@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Japan Watch</title>
+<style>
+/* Layout: slim status header, alert banners, then two columns: quake log (left) and Tokyo weather (right). Stacks on narrow screens. */
+:root{
+  --bg:#f3f5f7; --panel:#ffffff; --fg:#14202b; --muted:#5d6b78; --line:#dde3e9;
+  --accent:#0a6ea8; --accent-soft:#e1f0f8;
+  --ok:#1f8a4c; --warn:#b36b00; --bad:#c62828;
+  --rain0:#9fb7c9; --rain1:#4f9fd3; --rain2:#1a73b8; --rain3:#6a3fb0; --rain4:#b0207a; --rain5:#c62828;
+  --wind:#0f7b6c; --gust:#d9822b; --snow:#6d86a8;
+  --font-ui:'IBM Plex Sans','Hiragino Sans','Yu Gothic',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-data:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e151c; --panel:#162029; --fg:#e6edf3; --muted:#93a3b2; --line:#26343f;
+    --accent:#4fb3ec; --accent-soft:#12303f;
+    --ok:#4cc17f; --warn:#e8a43c; --bad:#ff6b6b;
+    --rain0:#5a7488; --rain1:#4f9fd3; --rain2:#3b8fe0; --rain3:#9b72e0; --rain4:#e05aa8; --rain5:#ff6b6b;
+    --wind:#3cc4ae; --gust:#f0a050; --snow:#a9bdd8;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e151c; --panel:#162029; --fg:#e6edf3; --muted:#93a3b2; --line:#26343f;
+  --accent:#4fb3ec; --accent-soft:#12303f;
+  --ok:#4cc17f; --warn:#e8a43c; --bad:#ff6b6b;
+  --rain0:#5a7488; --rain1:#4f9fd3; --rain2:#3b8fe0; --rain3:#9b72e0; --rain4:#e05aa8; --rain5:#ff6b6b;
+  --wind:#3cc4ae; --gust:#f0a050; --snow:#a9bdd8;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:14px/1.45 var(--font-ui);padding:16px max(16px,env(safe-area-inset-right,0px)) 40px max(16px,env(safe-area-inset-left,0px))}
+.wrap{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;justify-content:space-between}
+h1{font-size:20px;margin:0;letter-spacing:.01em}
+h1 small{font-weight:400;color:var(--muted);font-size:13px;margin-left:8px}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:0;font-weight:600}
+.status{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--muted)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block}
+.dot.live{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 25%,transparent)}
+.dot.poll{background:var(--warn)}
+.dot.off{background:var(--bad)}
+button,select{font:inherit;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 9px;cursor:pointer}
+button:hover,select:hover{border-color:var(--accent)}
+button:focus-visible,select:focus-visible,.q:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.on{background:var(--accent-soft);border-color:var(--accent)}
+.banner{display:none;border-radius:8px;padding:12px 14px;gap:12px;align-items:center;border:1px solid var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--panel))}
+.banner.show{display:flex}
+.banner.eew{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 18%,var(--panel))}
+.banner .t{flex:1;min-width:0}
+.banner b{font-size:15px}
+.cols{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:14px;align-items:start}
+@media (max-width:900px){.cols{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.ph{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--muted)}
+/* tabs */
+nav.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto;position:sticky;top:0;background:var(--bg);z-index:5}
+nav.tabs button{border:0;border-bottom:3px solid transparent;border-radius:0;background:transparent;padding:11px 16px;font-weight:600;color:var(--muted);white-space:nowrap}
+nav.tabs button:hover{color:var(--fg);border-bottom-color:var(--line)}
+nav.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+.badge{display:inline-block;min-width:18px;padding:0 6px;margin-left:6px;border-radius:9px;background:var(--accent);color:#fff;font:600 11px/18px var(--font-data);text-align:center}
+.view{display:none;flex-direction:column;gap:14px}
+.view.on{display:flex}
+.front{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.story{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:6px;cursor:pointer;min-width:0;text-align:left}
+.story:hover{border-color:var(--accent)}
+.story .kick{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+.story .hl{font-size:22px;line-height:1.2;font-weight:600;overflow-wrap:anywhere}
+.story .sub{color:var(--muted);font-size:13px}
+.story .row2{display:flex;gap:12px;align-items:center}
+.paper{font-size:12px;color:var(--muted);letter-spacing:.04em}
+/* quake list */
+.qs{display:flex;flex-direction:column}
+.q{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:10px;padding:10px 4px;border-top:1px solid var(--line);cursor:pointer;align-items:center}
+.q:first-child{border-top:0}
+.q:hover{background:color-mix(in srgb,var(--accent) 6%,transparent)}
+.sh{width:44px;height:44px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--font-data);font-weight:600;font-size:19px;line-height:1}
+.sh small{font-size:8px;font-weight:500;letter-spacing:.06em;margin-bottom:2px}
+.qn{font-weight:600;overflow-wrap:anywhere}
+.qj{color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+.qm{font-family:var(--font-data);font-size:12px;color:var(--muted);margin-top:2px}
+.qt{text-align:right;font-size:12px;color:var(--muted);font-family:var(--font-data);white-space:nowrap}
+.tag{display:inline-block;font-size:10px;font-weight:600;padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:middle;letter-spacing:.03em}
+.tag.ts{background:var(--bad);color:#fff}
+.tag.tk{background:var(--accent);color:#fff}
+.qd{grid-column:1/-1;font-size:12px;color:var(--muted);padding:6px 0 2px 58px;display:none}
+.q.open .qd{display:block}
+.pts{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px}
+.pts span{white-space:nowrap}
+.empty{color:var(--muted);padding:18px 0;text-align:center}
+/* weather */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.tile{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.tile .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.tile .v{font-family:var(--font-data);font-size:24px;font-weight:600;line-height:1.15}
+.tile .v small{font-size:12px;font-weight:500;color:var(--muted);margin-left:3px}
+.tile .s{font-size:12px;color:var(--muted)}
+.chart{overflow-x:auto}
+.chart svg{display:block;width:100%;min-width:560px;height:auto}
+.chart text{font-family:var(--font-data);font-size:10px;fill:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+table{border-collapse:collapse;width:100%;font-size:12px}
+th{text-align:left;font-weight:600;color:var(--muted);text-transform:uppercase;font-size:10px;letter-spacing:.07em;padding:4px 8px}
+td{padding:6px 8px;border-top:1px solid var(--line);font-family:var(--font-data)}
+td:first-child{font-family:var(--font-ui)}
+tr.fc td{color:var(--muted)}
+tr.today td{background:var(--accent-soft)}
+.bar{display:inline-block;height:8px;background:var(--rain2);border-radius:2px;vertical-align:middle;margin-right:6px}
+.tw{overflow-x:auto}
+.note{font-size:11px;color:var(--muted)}
+.err{color:var(--bad)}
+footer{font-size:11px;color:var(--muted)}
+footer a{color:var(--accent)}
+@media (prefers-reduced-motion:no-preference){.banner.show{animation:pulse 1.2s ease-in-out 3}}
+@keyframes pulse{50%{filter:brightness(1.12)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Japan Watch<small>Earthquakes across Japan · Tokyo weather</small></h1>
+    <div class="status">
+      <span><span class="dot" id="dot"></span> <span id="stext">Connecting…</span></span>
+      <span id="clock"></span>
+      <button id="btnSound" title="Browsers need one click before they allow sound">Sound: off</button>
+      <button id="btnTest" title="Preview the alert banner and sound">Test alert</button>
+    </div>
+  </header>
+
+  <div class="banner eew" id="eew" role="alert"><div class="t" id="eewT"></div><button data-close="eew">Dismiss</button></div>
+  <div class="banner" id="alertB" role="alert"><div class="t" id="alertT"></div><button data-close="alertB">Dismiss</button></div>
+
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Sections"></nav>
+
+  <div class="view" id="view-front" role="tabpanel">
+    <div class="front" id="front"></div>
+  </div>
+
+  <div class="view" id="view-quakes" role="tabpanel">
+    <section class="panel" aria-labelledby="hq">
+      <div class="ph">
+        <h2 id="hq">Earthquakes · Japan</h2>
+        <div class="ctl">
+          <label for="minScale">List shindo ≥</label>
+          <select id="minScale"></select>
+          <label for="alertScale">Alert at ≥</label>
+          <select id="alertScale"></select>
+        </div>
+      </div>
+      <div class="qs" id="quakes"><div class="empty">Loading recent earthquakes…</div></div>
+      <div class="ph"><button id="more">Load older</button><span class="note" id="qnote"></span></div>
+    </section>
+  </div>
+
+  <div class="view" id="view-weather" role="tabpanel">
+    <section class="panel" aria-labelledby="hw">
+      <div class="ph">
+        <h2 id="hw">Weather · Tokyo</h2>
+        <div class="ctl"><label for="loc">Area</label><select id="loc"></select><span id="wupd"></span></div>
+      </div>
+      <div class="tiles" id="tiles"></div>
+
+      <div>
+        <div class="ph"><h2>Rain, mm per hour</h2><div class="legend" id="rainLegend"></div></div>
+        <div class="chart" id="rainChart"></div>
+      </div>
+      <div>
+        <div class="ph"><h2>Wind, m/s (10 m above ground)</h2><div class="legend"><span><i style="background:var(--wind)"></i>Average</span><span><i style="background:var(--gust)"></i>Gusts</span></div></div>
+        <div class="chart" id="windChart"></div>
+      </div>
+      <div>
+        <div class="ph"><h2>Snow, cm per hour</h2></div>
+        <div class="chart" id="snowChart"></div>
+      </div>
+      <div>
+        <div class="ph"><h2>Day by day</h2></div>
+        <div class="tw"><table id="daily"></table></div>
+      </div>
+      <div class="note">Past hours come from the weather model's analysis (JMA model via Open-Meteo), so totals can differ from a rain gauge. Forecast bars are lighter.</div>
+    </section>
+  </div>
+
+  <footer>
+    Earthquake data: P2P Quake (relays Japan Meteorological Agency reports). Weather: Open-Meteo. For safety decisions, follow official alerts from JMA, NHK and your local government.
+    <a href="https://www.jma.go.jp/bosai/map.html#contents=earthquake_map" target="_blank" rel="noopener">JMA earthquake page</a>
+  </footer>
+</div>
+
+<script>
+'use strict';
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem('jw.'+k); return v===null? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem('jw.'+k, JSON.stringify(v)); }catch(e){} }
+};
+const fmtT = new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Tokyo',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false});
+const fmtH = new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit',hour12:false});
+const fmtD = new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Tokyo',weekday:'short',day:'2-digit',month:'short'});
+const fmtK = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'});
+function parseJST(s){
+  const m = String(s||'').match(/(\d{4})\/(\d\d)\/(\d\d) (\d\d):(\d\d)(?::(\d\d))?/);
+  return m ? new Date(Date.UTC(+m[1], +m[2]-1, +m[3], +m[4]-9, +m[5], +(m[6]||0))) : null;
+}
+function ago(d){
+  const s = Math.max(0, (Date.now()-d.getTime())/1000);
+  if(s<90) return 'just now';
+  if(s<3600) return Math.round(s/60)+' min ago';
+  if(s<86400) return Math.round(s/3600)+' h ago';
+  return Math.round(s/86400)+' d ago';
+}
+
+/* ---------- shindo (Japan seismic intensity) ---------- */
+const SHINDO = {
+  10:{l:'1',  bg:'#e8eefc',fg:'#1b2a4a'}, 20:{l:'2',  bg:'#7ec4f5',fg:'#0b2438'},
+  30:{l:'3',  bg:'#2f6fe0',fg:'#fff'},    40:{l:'4',  bg:'#f3e08a',fg:'#3a3000'},
+  45:{l:'5−', bg:'#ffd000',fg:'#3a2e00'}, 50:{l:'5+', bg:'#ff9a1f',fg:'#3a1d00'},
+  55:{l:'6−', bg:'#ee3a24',fg:'#fff'},    60:{l:'6+', bg:'#a50021',fg:'#fff'},
+  70:{l:'7',  bg:'#b40068',fg:'#fff'}
+};
+const SCALE_CODES = [10,20,30,40,45,50,55,60,70];
+const sh = c => SHINDO[c] || {l:'?',bg:'#9aa5b1',fg:'#fff'};
+
+/* ---------- Japanese place name -> rough English ---------- */
+const PREF = {'北海道':'Hokkaido','青森県':'Aomori','岩手県':'Iwate','宮城県':'Miyagi','秋田県':'Akita','山形県':'Yamagata','福島県':'Fukushima','茨城県':'Ibaraki','栃木県':'Tochigi','群馬県':'Gunma','埼玉県':'Saitama','千葉県':'Chiba','東京都':'Tokyo','神奈川県':'Kanagawa','新潟県':'Niigata','富山県':'Toyama','石川県':'Ishikawa','福井県':'Fukui','山梨県':'Yamanashi','長野県':'Nagano','岐阜県':'Gifu','静岡県':'Shizuoka','愛知県':'Aichi','三重県':'Mie','滋賀県':'Shiga','京都府':'Kyoto','大阪府':'Osaka','兵庫県':'Hyogo','奈良県':'Nara','和歌山県':'Wakayama','鳥取県':'Tottori','島根県':'Shimane','岡山県':'Okayama','広島県':'Hiroshima','山口県':'Yamaguchi','徳島県':'Tokushima','香川県':'Kagawa','愛媛県':'Ehime','高知県':'Kochi','福岡県':'Fukuoka','佐賀県':'Saga','長崎県':'Nagasaki','熊本県':'Kumamoto','大分県':'Oita','宮崎県':'Miyazaki','鹿児島県':'Kagoshima','沖縄県':'Okinawa'};
+const PLACES = [
+  ['房総半島沖','Boso Peninsula offshore'],['伊豆半島東方沖','east of Izu Peninsula'],['伊豆大島近海','near Izu-Oshima'],['小笠原諸島','Ogasawara Islands'],
+  ['沖縄本島近海','near Okinawa Island'],['奄美大島近海','near Amami-Oshima'],['能登半島沖','Noto Peninsula offshore'],['能登地方','Noto region'],
+  ['根室半島南東沖','SE of Nemuro Peninsula'],['東京湾','Tokyo Bay'],['相模湾','Sagami Bay'],['駿河湾','Suruga Bay'],['三陸沖','Sanriku offshore'],
+  ['日向灘','Hyuganada Sea'],['伊予灘','Iyonada Sea'],['遠州灘','Enshunada Sea'],['豊後水道','Bungo Channel'],['紀伊水道','Kii Channel'],
+  ['十勝沖','Tokachi offshore'],['釧路沖','Kushiro offshore'],['浦河沖','Urakawa offshore'],['石狩地方','Ishikari region'],['胆振地方','Iburi region'],
+  ['日高地方','Hidaka region'],['渡島地方','Oshima region'],['トカラ列島近海','near Tokara Islands'],['種子島近海','near Tanegashima'],
+  ['北西部',' northwest'],['北東部',' northeast'],['南西部',' southwest'],['南東部',' southeast'],
+  ['東方沖',' offshore east'],['西方沖',' offshore west'],['南方沖',' offshore south'],['北方沖',' offshore north'],
+  ['北東沖',' offshore northeast'],['北西沖',' offshore northwest'],['南東沖',' offshore southeast'],['南西沖',' offshore southwest'],
+  ['中東部',' central-east'],['中西部',' central-west'],['内陸',' inland'],['中部',' central'],['北部',' north'],['南部',' south'],['東部',' east'],['西部',' west'],
+  ['近海',' coastal waters'],['沖',' offshore'],['半島',' Peninsula'],['諸島',' Islands'],['湾',' Bay'],['灘',' Sea'],['地方',' region'],['島',' Island']
+];
+/* Sub-regions, islands and seas used in JMA epicenter names ("key:English;..."). Add more here any time. */
+const EXTRA = ('熊本:Kumamoto;阿蘇:Aso;球磨:Kuma;天草:Amakusa;芦北:Ashikita;薩摩:Satsuma;大隅:Osumi;十島村:Toshima;甑島:Koshikijima;種子島:Tanegashima;屋久島:Yakushima;奄美:Amami;'
+ +'石狩:Ishikari;渡島:Oshima;檜山:Hiyama;後志:Shiribeshi;空知:Sorachi;上川:Kamikawa;留萌:Rumoi;宗谷:Soya;網走:Abashiri;北見:Kitami;紋別:Monbetsu;胆振:Iburi;日高:Hidaka;十勝:Tokachi;釧路:Kushiro;根室:Nemuro;'
+ +'津軽:Tsugaru;三八上北:Sanpachi-Kamikita;下北:Shimokita;沿岸:coast;庄内:Shonai;最上:Mogami;村山:Murayama;置賜:Okitama;中通り:Nakadori;会津:Aizu;浜通り:Hamadori;'
+ +'秩父:Chichibu;23区:23 wards;多摩:Tama;上越:Joetsu;中越:Chuetsu;下越:Gaetsu;佐渡:Sado;能登:Noto;加賀:Kaga;嶺北:Reihoku;嶺南:Reinan;富士五湖:Fuji Five Lakes;飛騨:Hida;美濃:Mino;伊豆:Izu;'
+ +'淡路島:Awaji Island;隠岐:Oki;東予:Toyo;中予:Chuyo;南予:Nanyo;福岡:Fukuoka;北九州:Kitakyushu;筑豊:Chikuho;筑後:Chikugo;島原半島:Shimabara Peninsula;壱岐:Iki;対馬:Tsushima;五島列島:Goto Islands;'
+ +'日本海:Sea of Japan;太平洋:Pacific Ocean;東シナ海:East China Sea;瀬戸内海:Seto Inland Sea;オホーツク海:Sea of Okhotsk;千島列島:Kuril Islands;紀伊半島:Kii Peninsula;知床半島:Shiretoko Peninsula;渡島半島:Oshima Peninsula;'
+ +'薩摩半島:Satsuma Peninsula;大隅半島:Osumi Peninsula;大阪湾:Osaka Bay;伊勢湾:Ise Bay;三河湾:Mikawa Bay;若狭湾:Wakasa Bay;有明海:Ariake Sea;八代海:Yatsushiro Sea;周防灘:Suonada Sea;播磨灘:Harimanada Sea;'
+ +'与那国島:Yonaguni;宮古島:Miyako-jima;石垣島:Ishigaki;八重山:Yaeyama;大東島:Daito Islands;父島:Chichijima;硫黄島:Iwo-jima;鳥島:Torishima;三宅島:Miyake-jima;八丈島:Hachijo-jima;新島:Niijima;神津島:Kozu-shima;'
+ +'国後島:Kunashir;択捉島:Iturup;色丹島:Shikotan;山陰:San-in;北海道:Hokkaido;日向:Hyuga;駿河:Suruga;遠州:Enshu;相模:Sagami;房総:Boso;東京:Tokyo;本島:main island;平野部:plains;山沿い:mountains').split(';').map(x=>x.split(':'));
+let PL = null;
+function gloss(jp){
+  if(!jp) return '';
+  if(!PL) PL = PLACES.concat(EXTRA).sort((a,b)=>b[0].length-a[0].length);   // longest names first
+  let s = jp;
+  for(const [k,v] of Object.entries(PREF)) s = s.split(k).join(v+' ');        // prefectures first so 福島 isn't read as 島
+  for(const [k,v] of PL) s = s.split(k).join(v);
+  s = s.replace(/・/g,' / ').replace(/\s+/g,' ').trim();
+  s = s.replace(/(\b[A-Za-z-]+\b)(?: \1\b)+/gi,'$1');                         // "Kumamoto Kumamoto" -> "Kumamoto"
+  return /[A-Za-z]/.test(s) ? s : '';                                         // partial translations still show; the Japanese stays underneath
+}
+const prefEn = p => PREF[p] || p;
+
+/* ---------- state ---------- */
+const state = {
+  quakes: new Map(),            // key -> report
+  minScale: store.get('minScale', 30),
+  alertScale: store.get('alertScale', 40),
+  sound: store.get('sound', false),
+  loc: store.get('loc', 0),
+  offset: 0,
+  firstLoadDone: false,
+  wsOpen: false,
+  open: new Set()
+};
+const LOCS = [
+  {n:'Central Tokyo (Shinjuku)',lat:35.6895,lon:139.6917},
+  {n:'Tokyo Station / Marunouchi',lat:35.6812,lon:139.7671},
+  {n:'Haneda / Tokyo Bay',lat:35.5494,lon:139.7798},
+  {n:'Tama (Hachioji)',lat:35.6664,lon:139.3160},
+  {n:'Ome / western mountains',lat:35.7878,lon:139.2759},
+  {n:'Izu Oshima',lat:34.7500,lon:139.3550}
+];
+
+/* ---------- sound & notifications ---------- */
+let actx = null;
+function beep(strong){
+  if(!state.sound) return;
+  try{
+    actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+    const t0 = actx.currentTime;
+    const seq = strong ? [880,660,880,660,880] : [740,740];
+    seq.forEach((f,i)=>{
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type='sine'; o.frequency.value=f; o.connect(g); g.connect(actx.destination);
+      const a = t0 + i*0.32;
+      g.gain.setValueAtTime(0.0001,a); g.gain.exponentialRampToValueAtTime(0.35,a+0.03); g.gain.exponentialRampToValueAtTime(0.0001,a+0.28);
+      o.start(a); o.stop(a+0.3);
+    });
+  }catch(e){}
+}
+function desktopNotify(title, body){
+  try{ if('Notification' in window && Notification.permission==='granted') new Notification(title,{body}); }catch(e){}
+}
+function showBanner(id, html, ms){
+  $(id+'T').innerHTML = html; $(id).classList.add('show');
+  clearTimeout(showBanner[id]);
+  if(ms) showBanner[id] = setTimeout(()=>$(id).classList.remove('show'), ms);
+}
+document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).classList.remove('show')));
+
+/* ---------- earthquakes ---------- */
+const ISSUE_RANK = {ScalePrompt:1, Destination:2, ScaleAndDestination:3, DetailScale:4};
+const keyOf = q => (q.earthquake?.time || q.time || '').slice(0,16);
+
+function merge(q){
+  if(q.code!==551 || q.earthquake==null) return null;
+  const k = keyOf(q);
+  if(!k) return null;
+  const old = state.quakes.get(k);
+  const rank = r => ISSUE_RANK[r.issue?.type] || 0;
+  if(old && rank(q) < rank(old)) { return {k, q:old, isNew:false, grew:false}; }
+  if(old){
+    const hy = q.earthquake.hypocenter, ohy = old.earthquake.hypocenter;
+    if((!hy || !hy.name) && ohy && ohy.name) q.earthquake.hypocenter = ohy;
+    if(!(q.points && q.points.length) && old.points?.length) q.points = old.points;
+  }
+  state.quakes.set(k, q);
+  const grew = !!old && (q.earthquake.maxScale||0) > (old.earthquake.maxScale||0);
+  return {k, q, isNew:!old, grew};
+}
+async function loadHistory(offset, silent, limit=100){
+  try{
+    const r = await fetch(`https://api.p2pquake.net/v2/history?codes=551&limit=${limit}&offset=${offset}`, {cache:'no-store'});
+    if(!r.ok) throw new Error(r.status);
+    const arr = await r.json();
+    const alerts = [];
+    for(const q of arr){
+      const m = merge(q);
+      if(m && !silent && state.firstLoadDone && (m.isNew||m.grew) && (m.q.earthquake.maxScale||0) >= state.alertScale) alerts.push(m.q);
+    }
+    alerts.forEach(announce);
+    state.firstLoadDone = true;
+    if(!state.wsOpen) setStatus('poll','Connected · checking every 20 s');
+    $('qnote').textContent = '';
+    renderQuakes();
+    return arr.length;
+  }catch(e){
+    $('qnote').innerHTML = '<span class="err">Could not reach the earthquake feed. Retrying.</span>';
+    return 0;
+  }
+}
+function tokyoScale(q){
+  let max = 0;
+  for(const p of (q.points||[])) if(p.pref==='東京都' && p.scale>max) max = p.scale;
+  return max;
+}
+function announce(q){
+  const e = q.earthquake, hy = e.hypocenter||{};
+  const place = gloss(hy.name) || hy.name || 'Location being confirmed';
+  const t = tokyoScale(q);
+  const html = `<b>Earthquake: max shindo ${sh(e.maxScale).l}</b> · ${esc(place)}${hy.magnitude>0?` · M${hy.magnitude.toFixed(1)}`:''}`
+    + (t? ` · <b>Tokyo shindo ${sh(t).l}</b>`:'')
+    + (e.domesticTsunami && e.domesticTsunami!=='None' && e.domesticTsunami!=='Unknown' ? ' · <b>Tsunami information issued</b>':'');
+  showBanner('alert', html, 10*60*1000);
+  beep(true);
+  desktopNotify('Earthquake: shindo '+sh(e.maxScale).l, place);
+}
+function tsunamiTag(q){
+  const t = q.earthquake.domesticTsunami;
+  if(t==='Warning'||t==='Watch'||t==='Checking') return `<span class="tag ts">TSUNAMI ${t==='Checking'?'CHECK':t.toUpperCase()}</span>`;
+  return '';
+}
+function renderQuakes(){
+  renderFront();
+  const rows = [...state.quakes.values()]
+    .filter(q => (q.earthquake.maxScale||0) >= state.minScale)
+    .sort((a,b)=> (parseJST(b.earthquake.time)||0) - (parseJST(a.earthquake.time)||0));
+  if(!rows.length){ $('quakes').innerHTML = '<div class="empty">No earthquakes at this level in the loaded history. Lower the threshold or load older reports.</div>'; return; }
+  $('quakes').innerHTML = rows.slice(0,150).map(q=>{
+    const e=q.earthquake, hy=e.hypocenter||{}, s=sh(e.maxScale), d=parseJST(e.time);
+    const g = gloss(hy.name);
+    const t = tokyoScale(q);
+    const mag = hy.magnitude>0 ? 'M'+hy.magnitude.toFixed(1) : 'M –';
+    const dep = hy.depth===0 ? 'very shallow' : hy.depth>0 ? hy.depth+' km deep' : 'depth –';
+    const key = keyOf(q);
+    const byPref = {};
+    for(const p of (q.points||[])) if(!byPref[p.pref] || p.scale>byPref[p.pref]) byPref[p.pref]=p.scale;
+    const prefs = Object.entries(byPref).sort((a,b)=>b[1]-a[1]);
+    const detail = prefs.length
+      ? `<div>Strongest shaking by prefecture</div><div class="pts">${prefs.map(([p,c])=>`<span><b style="color:var(--fg)">${esc(prefEn(p))}</b> ${sh(c).l}</span>`).join('')}</div>`
+      : '<div>Area-by-area intensities have not been published yet.</div>';
+    const rtype = {ScalePrompt:'Flash report (intensity only)',Destination:'Epicenter report',ScaleAndDestination:'Intensity and epicenter',DetailScale:'Full report',Foreign:'Overseas',Other:'Other'}[q.issue?.type] || '';
+    return `<div class="q${state.open.has(key)?' open':''}" data-k="${esc(key)}" tabindex="0" role="button" aria-expanded="${state.open.has(key)}">
+      <div class="sh" style="background:${s.bg};color:${s.fg}"><small>SHINDO</small>${s.l}</div>
+      <div><div class="qn">${esc(g||hy.name||'Epicenter being confirmed')}${tsunamiTag(q)}${t?`<span class="tag tk">Tokyo ${sh(t).l}</span>`:''}</div>
+        ${hy.name?`<div class="qj">${esc(hy.name)}</div>`:''}
+        <div class="qm">${mag} · ${dep}</div></div>
+      <div class="qt">${d?fmtT.format(d):''}<br>${d?ago(d):''}</div>
+      <div class="qd">${detail}<div style="margin-top:6px">${esc(rtype)}${q.earthquake.domesticTsunami==='None'?' · No tsunami concern':''}</div></div>
+    </div>`;
+  }).join('');
+}
+$('quakes').addEventListener('click',e=>{
+  const el = e.target.closest('.q'); if(!el) return;
+  const k = el.dataset.k; state.open.has(k)? state.open.delete(k) : state.open.add(k);
+  el.classList.toggle('open'); el.setAttribute('aria-expanded', state.open.has(k));
+});
+$('quakes').addEventListener('keydown',e=>{ if((e.key==='Enter'||e.key===' ') && e.target.classList.contains('q')){ e.preventDefault(); e.target.click(); }});
+
+/* ---------- live feed (WebSocket) ---------- */
+let ws, backoff = 2000, eewTimer;
+function setStatus(kind, text){ $('dot').className='dot '+kind; $('stext').textContent=text; }
+function connectWS(){
+  try{ ws = new WebSocket('wss://api.p2pquake.net/v2/ws'); }catch(e){ setStatus('poll','Live feed unavailable, checking every minute'); return; }
+  ws.onopen = () => { state.wsOpen = true; backoff = 2000; setStatus('live','Live'); loadHistory(0,true); };
+  ws.onmessage = ev => {
+    let d; try{ d = JSON.parse(ev.data); }catch(e){ return; }
+    if(d.code===551){
+      const m = merge(d);
+      if(m && (m.isNew||m.grew) && (m.q.earthquake.maxScale||0) >= state.alertScale) announce(m.q);
+      renderQuakes();
+    } else if(d.code===556){ handleEEW(d); }
+  };
+  ws.onclose = () => { state.wsOpen=false; setStatus('poll','Live push reconnecting · checking every 20 s'); setTimeout(connectWS, backoff); backoff = Math.min(backoff*1.7, 60000); };
+  ws.onerror = () => { try{ ws.close(); }catch(e){} };
+}
+function handleEEW(d){
+  if(d.test) return;
+  if(d.cancelled){ $('eew').classList.remove('show'); return; }
+  const hy = d.earthquake?.hypocenter || d.hypocenter || {};
+  const areas = d.areas || [];
+  let max = 0;
+  for(const a of areas){ const v = (a.scaleTo && a.scaleTo<99)? a.scaleTo : a.scaleFrom; if(v>max) max=v; }
+  const tokyo = areas.some(a=>a.pref==='東京都');
+  const place = gloss(hy.name) || hy.name || 'location being determined';
+  showBanner('eew', `<b>Earthquake Early Warning</b> · ${esc(place)}${hy.magnitude>0?` · M${hy.magnitude.toFixed(1)}`:''}${max?` · expected up to shindo ${sh(max).l}`:''}${tokyo?' · <b>Includes Tokyo</b>':''}`, 90000);
+  beep(true);
+  desktopNotify('Earthquake Early Warning', place);
+}
+setInterval(()=>{ if(!state.wsOpen) loadHistory(0,false,30); }, 20000);
+setInterval(renderQuakes, 60000);   // keep "x min ago" fresh
+
+/* ---------- controls ---------- */
+function fillScaleSelect(sel, cur){
+  sel.innerHTML = SCALE_CODES.map(c=>`<option value="${c}"${c===cur?' selected':''}>${SHINDO[c].l}</option>`).join('');
+}
+fillScaleSelect($('minScale'), state.minScale);
+fillScaleSelect($('alertScale'), state.alertScale);
+$('minScale').onchange = e => { state.minScale=+e.target.value; store.set('minScale',state.minScale); renderQuakes(); };
+$('alertScale').onchange = e => { state.alertScale=+e.target.value; store.set('alertScale',state.alertScale); };
+$('more').onclick = async () => { state.offset += 100; $('more').disabled = true; await loadHistory(state.offset,true); $('more').disabled = false; };
+function paintSound(){ $('btnSound').textContent = 'Sound: '+(state.sound?'on':'off'); $('btnSound').classList.toggle('on',state.sound); }
+$('btnSound').onclick = () => {
+  state.sound = !state.sound; store.set('sound',state.sound); paintSound();
+  if(state.sound){ beep(false); try{ if('Notification' in window && Notification.permission==='default') Notification.requestPermission(); }catch(e){} }
+};
+$('btnTest').onclick = () => {
+  showBanner('alert','<b>Test alert</b> · This is how a strong earthquake notice will look. Real alerts show the epicenter, magnitude and Tokyo shindo.', 15000);
+  if(!state.sound) { state.sound = true; store.set('sound',true); paintSound(); }
+  beep(true);
+};
+paintSound();
+$('loc').innerHTML = LOCS.map((l,i)=>`<option value="${i}"${i===state.loc?' selected':''}>${l.n}</option>`).join('');
+$('loc').onchange = e => { state.loc=+e.target.value; store.set('loc',state.loc); loadWeather(); };
+setInterval(()=>{ $('clock').textContent = fmtD.format(new Date())+' · JST '+fmtH.format(new Date()); }, 1000);
+
+/* ---------- weather ---------- */
+const RAIN_BANDS = [
+  [80,'Extreme','--rain5'],[50,'Very intense','--rain4'],[30,'Intense','--rain3'],[20,'Heavy','--rain2'],[10,'Fairly heavy','--rain1'],[1,'Light–moderate','--rain0'],[0,'Trace','--rain0']
+];
+const rainBand = v => RAIN_BANDS.find(b=>v>=b[0]);
+const WIND_WORD = v => v>=30?'Violent':v>=20?'Very strong':v>=15?'Strong':v>=10?'Fairly strong':v>=5?'Breezy':'Light';
+const COMPASS = d => ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'][Math.round(((d%360)/22.5))%16];
+const n1 = v => (Math.round(v*10)/10).toFixed(1);
+const sum = a => a.reduce((x,y)=>x+(y||0),0);
+const max = a => a.reduce((x,y)=>Math.max(x,y||0),0);
+let WX = null;
+
+async function loadWeather(){
+  const L = LOCS[state.loc];
+  const base = `https://api.open-meteo.com/v1/forecast?latitude=${L.lat}&longitude=${L.lon}&hourly=precipitation,rain,showers,snowfall,wind_speed_10m,wind_gusts_10m,wind_direction_10m,temperature_2m&current=temperature_2m,precipitation,snowfall,wind_speed_10m,wind_gusts_10m,wind_direction_10m&past_days=7&forecast_days=3&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+  let data = null;
+  for(const extra of ['&models=jma_seamless','']){
+    try{
+      const r = await fetch(base+extra,{cache:'no-store'});
+      if(!r.ok) continue;
+      const j = await r.json();
+      if(j.hourly?.time?.length){ data = j; break; }
+    }catch(e){}
+  }
+  if(!data){ $('tiles').innerHTML='<div class="err">Could not load weather data. Will retry shortly.</div>'; return; }
+  WX = data; renderWeather();
+}
+function renderWeather(){
+  const h = WX.hourly, c = WX.current || {};
+  const t = h.time.map(s=>new Date(s+':00+09:00'));
+  const now = Date.now();
+  let ni = 0; for(let i=0;i<t.length;i++){ if(t[i].getTime()<=now) ni=i; }
+  const a0 = Math.max(0,ni-23), f1 = Math.min(t.length-1, ni+24), f2 = Math.min(t.length-1, ni+48);
+  const P = h.precipitation, S = h.snowfall, G = h.wind_gusts_10m, W = h.wind_speed_10m;
+  const past24 = sum(P.slice(a0,ni+1)), next24 = sum(P.slice(ni+1,f1+1)), next48 = sum(P.slice(ni+1,f2+1));
+  const pkVal = max(P.slice(ni+1,f2+1)); const pkI = P.indexOf(pkVal, ni+1);
+  const gMax = max(G.slice(ni+1,f2+1)); const gI = G.indexOf(gMax, ni+1);
+  const snowPast = sum(S.slice(a0,ni+1)), snowNext = sum(S.slice(ni+1,f2+1));
+  const wNow = c.wind_speed_10m ?? W[ni], gNow = c.wind_gusts_10m ?? G[ni], dNow = c.wind_direction_10m ?? h.wind_direction_10m[ni];
+  const tiles = [
+    ['Now', `${n1(c.temperature_2m ?? h.temperature_2m[ni])}<small>°C</small>`, `${n1(c.precipitation ?? P[ni])} mm/h rain · ${(c.snowfall ?? S[ni])>0?n1(c.snowfall ?? S[ni])+' cm/h snow':'no snow'}`],
+    ['Wind now', `${n1(wNow)}<small>m/s</small>`, `${COMPASS(dNow)} · gusts ${n1(gNow)} m/s · ${WIND_WORD(gNow)}`],
+    ['Rain, last 24 h', `${n1(past24)}<small>mm</small>`, 'what fell, per the model analysis'],
+    ['Rain, next 24 h', `${n1(next24)}<small>mm</small>`, `next 48 h: ${n1(next48)} mm`],
+    ['Heaviest hour ahead', `${n1(pkVal)}<small>mm/h</small>`, pkVal>=0.5 ? `${fmtD.format(t[pkI]).split(' ')[0]} ${fmtH.format(t[pkI])} · ${rainBand(pkVal)[1]}` : 'no significant rain in 48 h'],
+    ['Strongest gust ahead', `${n1(gMax)}<small>m/s</small>`, `${fmtD.format(t[gI]).split(' ')[0]} ${fmtH.format(t[gI])} · ${WIND_WORD(gMax)}`],
+    ['Snow', `${n1(snowNext)}<small>cm</small>`, `next 48 h · last 24 h: ${n1(snowPast)} cm`]
+  ];
+  $('tiles').innerHTML = tiles.map(x=>`<div class="tile"><span class="l">${x[0]}</span><span class="v">${x[1]}</span><span class="s">${x[2]}</span></div>`).join('');
+  $('wupd').textContent = '· updated '+fmtH.format(new Date());
+  WSUM = {temp:c.temperature_2m ?? h.temperature_2m[ni], past24, next24, next48, pkVal, pkT:t[pkI], gMax, gT:t[gI], snowPast, snowNext, wNow, gNow};
+  renderFront();
+
+  const idx = []; for(let i=Math.max(0,ni-23); i<=f2; i++) idx.push(i);
+  const nowPos = idx.indexOf(ni);
+
+  // rain
+  $('rainLegend').innerHTML = [[1,'Light–moderate','--rain0'],[10,'10+ Fairly heavy','--rain1'],[20,'20+ Heavy','--rain2'],[30,'30+ Intense','--rain3'],[50,'50+ Very intense','--rain4']]
+    .map(b=>`<span><i style="background:var(${b[2]})"></i>${b[1]}</span>`).join('');
+  $('rainChart').innerHTML = barChart(idx.map(i=>({t:t[i],v:P[i]||0,color:`var(${rainBand(P[i]||0)[2]})`,tip:`${fmtD.format(t[i])} ${fmtH.format(t[i])} · ${n1(P[i]||0)} mm/h`})), nowPos, {unit:'mm/h', minMax:5, refs:[10,20,30]});
+  // wind
+  $('windChart').innerHTML = lineChart(idx.map(i=>({t:t[i],a:W[i]||0,b:G[i]||0})), nowPos, {minMax:15, refs:[10,15,20]});
+  // snow
+  const anySnow = idx.some(i=>(S[i]||0)>0);
+  $('snowChart').innerHTML = anySnow
+    ? barChart(idx.map(i=>({t:t[i],v:S[i]||0,color:'var(--snow)',tip:`${fmtD.format(t[i])} ${fmtH.format(t[i])} · ${n1(S[i]||0)} cm/h`})), nowPos, {unit:'cm/h', minMax:1, refs:[]})
+    : '<div class="empty" style="padding:8px 0;text-align:left">No snow in the past 24 hours or the next 48 hours.</div>';
+
+  // daily
+  const days = new Map();
+  t.forEach((d,i)=>{ const k = fmtK.format(d); if(!days.has(k)) days.set(k,{d,p:[],s:[],g:[],first:i}); const o=days.get(k); o.p.push(P[i]); o.s.push(S[i]); o.g.push(G[i]); });
+  const todayK = fmtK.format(new Date());
+  const rowsD = [...days.entries()].map(([k,o])=>({k,...o,rain:sum(o.p),pk:max(o.p),snow:sum(o.s),gust:max(o.g)}));
+  const mx = Math.max(10, ...rowsD.map(r=>r.rain));
+  $('daily').innerHTML = `<thead><tr><th>Day</th><th>Rain total</th><th>Peak mm/h</th><th>Snow cm</th><th>Max gust m/s</th></tr></thead><tbody>`
+    + rowsD.slice().reverse().map(r=>{
+      const cls = r.k===todayK ? 'today' : r.k>todayK ? 'fc' : '';
+      const lab = r.k===todayK ? 'Today' : r.k>todayK ? 'Forecast' : 'Observed';
+      return `<tr class="${cls}"><td>${fmtD.format(r.d)} <span class="note">${lab}</span></td><td><span class="bar" style="width:${Math.round(r.rain/mx*90)}px"></span>${n1(r.rain)} mm</td><td>${n1(r.pk)}</td><td>${n1(r.snow)}</td><td>${n1(r.gust)}</td></tr>`;
+    }).join('') + '</tbody>';
+}
+
+/* ---------- SVG charts ---------- */
+const CW=720, CH=200, ML=36, MR=8, MT=10, MB=24;
+function niceMax(v, floor){
+  v = Math.max(v, floor);
+  const steps=[1,2,5,10,15,20,25,30,40,50,80,100];
+  const s = steps.find(x=>x*4>=v) || Math.ceil(v/4);
+  return {top:s*4, step:s};
+}
+function axes(items, nowPos, top, step, refs){
+  const n = items.length, pw = CW-ML-MR, ph = CH-MT-MB, bw = pw/n;
+  const y = v => MT + ph - (v/top)*ph;
+  let g = '';
+  for(let v=0; v<=top+1e-9; v+=step){ g += `<line x1="${ML}" x2="${CW-MR}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${ML-5}" y="${y(v)+3}" text-anchor="end">${v}</text>`; }
+  (refs||[]).forEach(v=>{ if(v<=top) g += `<line x1="${ML}" x2="${CW-MR}" y1="${y(v)}" y2="${y(v)}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3" opacity=".6"/>`; });
+  items.forEach((it,i)=>{
+    const hr = +fmtH.format(it.t).slice(0,2);
+    if(hr%6===0){
+      const x = ML + i*bw + bw/2;
+      g += `<text x="${x}" y="${CH-9}" text-anchor="middle">${hr===0 ? fmtD.format(it.t).replace(/^\w+ /,'') : String(hr).padStart(2,'0')}</text>`;
+      if(hr===0) g += `<line x1="${x-bw/2}" x2="${x-bw/2}" y1="${MT}" y2="${CH-MB}" stroke="var(--line)"/>`;
+    }
+  });
+  const nx = ML + (nowPos+1)*bw;
+  g += `<line x1="${nx}" x2="${nx}" y1="${MT}" y2="${CH-MB}" stroke="var(--accent)" stroke-width="1.5"/><text x="${nx+4}" y="${MT+9}" style="fill:var(--accent)">now</text>`;
+  return {g, bw, y, nx};
+}
+function barChart(items, nowPos, o){
+  const mx = Math.max(...items.map(i=>i.v), 0);
+  const {top, step} = niceMax(mx, o.minMax);
+  const A = axes(items, nowPos, top, step, o.refs);
+  const bars = items.map((it,i)=>{
+    const x = ML + i*A.bw + 1, w = Math.max(1, A.bw-2), yy = A.y(it.v), hgt = Math.max(0, (CH-MB)-yy);
+    const fc = i>nowPos;
+    return `<rect x="${x}" y="${yy}" width="${w}" height="${hgt}" rx="1.5" fill="${it.color}" ${fc?'fill-opacity=".55" stroke="'+it.color+'" stroke-width="1"':''}><title>${esc(it.tip)}</title></rect>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${CW} ${CH}" role="img" aria-label="Hourly chart, ${o.unit}">${A.g}${bars}</svg>`;
+}
+function lineChart(items, nowPos, o){
+  const mx = Math.max(...items.map(i=>i.b), 0);
+  const {top, step} = niceMax(mx, o.minMax);
+  const A = axes(items, nowPos, top, step, o.refs);
+  const pt = (i,v)=>`${(ML + i*A.bw + A.bw/2).toFixed(1)},${A.y(v).toFixed(1)}`;
+  const base = (CH-MB);
+  const gustArea = `M${ML + A.bw/2},${base} ` + items.map((it,i)=>'L'+pt(i,it.b)).join(' ') + ` L${ML + (items.length-1)*A.bw + A.bw/2},${base}Z`;
+  const gustLine = 'M'+items.map((it,i)=>pt(i,it.b)).join(' L');
+  const avgLine = 'M'+items.map((it,i)=>pt(i,it.a)).join(' L');
+  const hits = items.map((it,i)=>`<rect x="${ML+i*A.bw}" y="${MT}" width="${A.bw}" height="${CH-MT-MB}" fill="transparent"><title>${esc(fmtD.format(it.t)+' '+fmtH.format(it.t)+' · avg '+n1(it.a)+' m/s, gust '+n1(it.b)+' m/s')}</title></rect>`).join('');
+  return `<svg viewBox="0 0 ${CW} ${CH}" role="img" aria-label="Hourly wind chart"><path d="${gustArea}" fill="var(--gust)" fill-opacity=".14"/><path d="${gustLine}" fill="none" stroke="var(--gust)" stroke-width="1.8"/><path d="${avgLine}" fill="none" stroke="var(--wind)" stroke-width="2"/>${A.g}${hits}</svg>`;
+}
+
+/* ---------- front page ---------- */
+let WSUM = null;
+function renderFront(){
+  const el = $('front'); if(!el) return;
+  const now = Date.now();
+  const rows = [...state.quakes.values()]
+    .filter(q => (q.earthquake.maxScale||0) >= state.minScale)
+    .sort((a,b)=> (parseJST(b.earthquake.time)||0) - (parseJST(a.earthquake.time)||0));
+  const n24 = rows.filter(q=>{ const d=parseJST(q.earthquake.time); return d && now-d < 864e5; }).length;
+  setBadge('quakes', n24);
+  let cards = '';
+  const q = rows[0];
+  if(q){
+    const e=q.earthquake, hy=e.hypocenter||{}, s=sh(e.maxScale), d=parseJST(e.time), tk=tokyoScale(q);
+    cards += `<div class="story" data-go="quakes" role="link" tabindex="0">
+      <span class="kick">Latest earthquake · shindo ${sh(state.minScale).l}+</span>
+      <div class="row2"><div class="sh" style="background:${s.bg};color:${s.fg}"><small>SHINDO</small>${s.l}</div>
+      <div class="hl">${esc(gloss(hy.name)||hy.name||'Epicenter being confirmed')}</div></div>
+      <span class="sub">${d?fmtT.format(d)+' · '+ago(d):''}${hy.magnitude>0?' · M'+hy.magnitude.toFixed(1):''} · ${tk?'Tokyo felt shindo '+sh(tk).l:'not reported in Tokyo'}</span>
+      <span class="sub">${n24} earthquake${n24===1?'':'s'} at this level in the past 24 hours</span></div>`;
+  } else {
+    cards += `<div class="story" data-go="quakes" role="link" tabindex="0"><span class="kick">Earthquakes</span><div class="hl">${state.firstLoadDone?'None at this level in recent history':'Loading…'}</div><span class="sub">Open the Earthquakes tab to change the threshold.</span></div>`;
+  }
+  if(WSUM){
+    const w = WSUM, band = rainBand(w.pkVal)[1];
+    cards += `<div class="story" data-go="weather" role="link" tabindex="0"><span class="kick">Rain · Tokyo</span>
+      <div class="hl">${w.next24>=0.5? n1(w.next24)+' mm expected in 24 h' : 'Dry for the next 24 h'}</div>
+      <span class="sub">Last 24 h: ${n1(w.past24)} mm fell${w.pkVal>=0.5?` · heaviest hour ahead ${n1(w.pkVal)} mm/h (${band.toLowerCase()})`:''}</span></div>`;
+    cards += `<div class="story" data-go="weather" role="link" tabindex="0"><span class="kick">Wind · Tokyo</span>
+      <div class="hl">Gusts up to ${n1(w.gMax)} m/s</div>
+      <span class="sub">${WIND_WORD(w.gMax)} · ${fmtD.format(w.gT).split(' ')[0]} ${fmtH.format(w.gT)} · now ${n1(w.wNow)} m/s, ${n1(w.temp)} °C</span></div>`;
+    if(w.snowNext>0 || w.snowPast>0){
+      cards += `<div class="story" data-go="weather" role="link" tabindex="0"><span class="kick">Snow · Tokyo</span><div class="hl">${n1(w.snowNext)} cm expected in 48 h</div><span class="sub">Last 24 h: ${n1(w.snowPast)} cm</span></div>`;
+    }
+  } else {
+    cards += `<div class="story" data-go="weather" role="link" tabindex="0"><span class="kick">Weather · Tokyo</span><div class="hl">Loading…</div></div>`;
+  }
+  el.innerHTML = cards;
+}
+$('front').addEventListener('click', e=>{ const s=e.target.closest('[data-go]'); if(s) showTab(s.dataset.go); });
+$('front').addEventListener('keydown', e=>{ if(e.key==='Enter'){ const s=e.target.closest('[data-go]'); if(s) showTab(s.dataset.go); }});
+
+/* ---------- sections / tabs ----------
+   To add a section: add an entry here and a <div class="view" id="view-NAME"> in the page. */
+const SECTIONS = [
+  {id:'front',   label:'Front page'},
+  {id:'quakes',  label:'Earthquakes'},
+  {id:'weather', label:'Weather'}
+];
+function buildTabs(){
+  $('tabs').innerHTML = SECTIONS.map(s=>`<button role="tab" id="tab-${s.id}" data-tab="${s.id}" aria-selected="false">${esc(s.label)}<span class="badge" id="badge-${s.id}" hidden></span></button>`).join('');
+}
+function setBadge(id, n){ const b=$('badge-'+id); if(!b) return; b.hidden = !n; b.textContent = n; }
+function showTab(id){
+  if(!SECTIONS.some(s=>s.id===id)) id = 'front';
+  SECTIONS.forEach(s=>{
+    $('view-'+s.id)?.classList.toggle('on', s.id===id);
+    $('tab-'+s.id)?.setAttribute('aria-selected', s.id===id);
+  });
+  store.set('tab', id);
+  if(location.hash !== '#'+id) history.replaceState(null,'','#'+id);
+}
+$('tabs').addEventListener('click', e=>{ const b=e.target.closest('[data-tab]'); if(b) showTab(b.dataset.tab); });
+window.addEventListener('hashchange', ()=>showTab(location.hash.slice(1)));
+buildTabs();
+showTab(location.hash.slice(1) || store.get('tab','front'));
+renderFront();
+
+/* ---------- boot ---------- */
+loadHistory(0,true).then(()=>{ connectWS(); });
+loadWeather();
+setInterval(loadWeather, 10*60*1000);
+</script>
+</body>
+</html>
