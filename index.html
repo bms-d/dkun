@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Japan Watch</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
 /* Layout: slim status header, alert banners, then two columns: quake log (left) and Tokyo weather (right). Stacks on narrow screens. */
 :root{
@@ -76,6 +78,14 @@ nav.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--
 .story .sub{color:var(--muted);font-size:13px}
 .story .row2{display:flex;gap:12px;align-items:center}
 .paper{font-size:12px;color:var(--muted);letter-spacing:.04em}
+/* typhoon */
+#tcmap{height:460px;border:1px solid var(--line);border-radius:8px;background:var(--bg);z-index:0}
+@media (max-width:600px){#tcmap{height:340px}}
+.leaflet-tooltip.tclabel{background:var(--panel);color:var(--fg);border:1px solid var(--line);font:600 11px var(--font-data);padding:1px 5px;box-shadow:none}
+.leaflet-tooltip.tclabel::before{display:none}
+.chipbar{display:flex;flex-wrap:wrap;gap:6px}
+.chipbar button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent)}
+.key i{display:inline-block;width:18px;height:0;border-top:3px solid;vertical-align:middle;margin-right:5px}
 /* quake list */
 .qs{display:flex;flex-direction:column}
 .q{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:10px;padding:10px 4px;border-top:1px solid var(--line);cursor:pointer;align-items:center}
@@ -157,6 +167,25 @@ footer a{color:var(--accent)}
       </div>
       <div class="qs" id="quakes"><div class="empty">Loading recent earthquakes…</div></div>
       <div class="ph"><button id="more">Load older</button><span class="note" id="qnote"></span></div>
+    </section>
+  </div>
+
+  <div class="view" id="view-typhoon" role="tabpanel">
+    <section class="panel" aria-labelledby="htc">
+      <div class="ph"><h2 id="htc">Typhoons · Western Pacific</h2><span class="note" id="tcupd">All times are Japan Standard Time (UTC+9)</span></div>
+      <div class="chipbar" id="tcsel"></div>
+      <div class="tiles" id="tcsum"></div>
+      <div id="tcmap" role="img" aria-label="Map of the typhoon position, past track and forecast path"></div>
+      <div class="legend key">
+        <span><i style="border-color:#455a6b"></i>Past track</span>
+        <span><i style="border-color:#c62828;border-top-style:dashed"></i>Forecast path</span>
+        <span><i style="border-color:#c62828;opacity:.45"></i>Error circle (70% chance the centre stays inside)</span>
+        <span><i style="border-color:#e08a1e"></i>Gale area (15 m/s+)</span>
+        <span><i style="border-color:#c62828"></i>Storm area (25 m/s+)</span>
+        <span><i style="border-color:#0a6ea8"></i>Your location</span>
+      </div>
+      <div class="tw"><table id="tctable"></table></div>
+      <div class="note">Data: Japan Meteorological Agency, refreshed every 15 minutes. JMA publishes in UTC on some pages; everything here is converted to JST. This is a convenience view, so follow official JMA and local government warnings.</div>
     </section>
   </div>
 
@@ -254,7 +283,8 @@ const EXTRA = ('熊本:Kumamoto;阿蘇:Aso;球磨:Kuma;天草:Amakusa;芦北:Ash
  +'日本海:Sea of Japan;太平洋:Pacific Ocean;東シナ海:East China Sea;瀬戸内海:Seto Inland Sea;オホーツク海:Sea of Okhotsk;千島列島:Kuril Islands;紀伊半島:Kii Peninsula;知床半島:Shiretoko Peninsula;渡島半島:Oshima Peninsula;'
  +'薩摩半島:Satsuma Peninsula;大隅半島:Osumi Peninsula;大阪湾:Osaka Bay;伊勢湾:Ise Bay;三河湾:Mikawa Bay;若狭湾:Wakasa Bay;有明海:Ariake Sea;八代海:Yatsushiro Sea;周防灘:Suonada Sea;播磨灘:Harimanada Sea;'
  +'与那国島:Yonaguni;宮古島:Miyako-jima;石垣島:Ishigaki;八重山:Yaeyama;大東島:Daito Islands;父島:Chichijima;硫黄島:Iwo-jima;鳥島:Torishima;三宅島:Miyake-jima;八丈島:Hachijo-jima;新島:Niijima;神津島:Kozu-shima;'
- +'国後島:Kunashir;択捉島:Iturup;色丹島:Shikotan;山陰:San-in;北海道:Hokkaido;日向:Hyuga;駿河:Suruga;遠州:Enshu;相模:Sagami;房総:Boso;東京:Tokyo;本島:main island;平野部:plains;山沿い:mountains').split(';').map(x=>x.split(':'));
+ +'国後島:Kunashir;択捉島:Iturup;色丹島:Shikotan;山陰:San-in;北海道:Hokkaido;日向:Hyuga;駿河:Suruga;遠州:Enshu;相模:Sagami;房総:Boso;東京:Tokyo;本島:main island;平野部:plains;山沿い:mountains;'
+ +'フィリピン:Philippines;台湾:Taiwan;マリアナ諸島:Mariana Islands;グアム:Guam;カロリン諸島:Caroline Islands;パラオ:Palau;南シナ海:South China Sea;ベトナム:Vietnam;ルソン島:Luzon;南鳥島:Minamitorishima;沖ノ鳥島:Okinotorishima;小笠原:Ogasawara;日本:Japan;中国:China;朝鮮半島:Korean Peninsula;沖縄:Okinawa;先島諸島:Sakishima Islands;大東島地方:Daito Islands').split(';').map(x=>x.split(':'));
 let PL = null;
 function gloss(jp){
   if(!jp) return '';
@@ -544,6 +574,7 @@ function renderWeather(){
   $('hw').textContent = 'Weather · '+placeShort();
   WSUM = {temp:c.temperature_2m ?? h.temperature_2m[ni], past24, next24, next48, pkVal, pkT:t[pkI], gMax, gT:t[gI], snowPast, snowNext, wNow, gNow};
   renderFront();
+  renderTyphoon(false);
 
   const idx = []; for(let i=Math.max(0,ni-23); i<=f2; i++) idx.push(i);
   const nowPos = idx.indexOf(ni);
@@ -624,6 +655,136 @@ function lineChart(items, nowPos, o){
   return `<svg viewBox="0 0 ${CW} ${CH}" role="img" aria-label="Hourly wind chart"><path d="${gustArea}" fill="var(--gust)" fill-opacity=".14"/><path d="${gustLine}" fill="none" stroke="var(--gust)" stroke-width="1.8"/><path d="${avgLine}" fill="none" stroke="var(--wind)" stroke-width="2"/>${A.g}${hits}</svg>`;
 }
 
+/* ---------- typhoons (JMA data; every time is shown in JST) ---------- */
+const TC_BASE = 'https://www.jma.go.jp/bosai/typhoon/data/';
+const TC_CAT = {TY:'Typhoon',STS:'Severe tropical storm',TS:'Tropical storm',TD:'Tropical depression',L:'Low pressure'};
+const TC_INT = {'強い':'Strong','非常に強い':'Very strong','猛烈な':'Violent'};
+const TC_SIZE = {'大型':'Large','超大型':'Very large'};
+const COURSE = {'北':'north','北北東':'north-northeast','北東':'northeast','東北東':'east-northeast','東':'east','東南東':'east-southeast','南東':'southeast','南南東':'south-southeast','南':'south','南南西':'south-southwest','南西':'southwest','西南西':'west-southwest','西':'west','西北西':'west-northwest','北西':'northwest','北北西':'north-northwest','不定':'variable'};
+const DIRW = {'北':'north','北東':'northeast','東':'east','南東':'southeast','南':'south','南西':'southwest','西':'west','北西':'northwest'};
+const fmtJ = new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Tokyo',weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hour12:false});
+const fmtJs = new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Tokyo',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false});
+const jst = d => d ? fmtJ.format(d)+' JST' : '–';
+const rad = x => x*Math.PI/180;
+function distKm(a,b){ const dLa=rad(b[0]-a[0]), dLo=rad(b[1]-a[1]); const h=Math.sin(dLa/2)**2+Math.cos(rad(a[0]))*Math.cos(rad(b[0]))*Math.sin(dLo/2)**2; return 2*6371*Math.asin(Math.sqrt(h)); }
+const latS = v => Math.abs(v).toFixed(1)+'°'+(v>=0?'N':'S');
+const lonS = v => Math.abs(v).toFixed(1)+'°'+(v>=0?'E':'W');
+function glossTc(jp){
+  if(!jp) return '';
+  const m = jp.match(/^(.+?)の(北東|北西|南東|南西|東|西|南|北)(?:方)?(?:海上)?$/);
+  if(m) return `${DIRW[m[2]]} of ${gloss(m[1]) || m[1]}`;
+  return gloss(jp);
+}
+let TC = [], tcSel = null, tcMap = null, tcLayer = null, tcFit = '';
+async function getJ(u){ const r = await fetch(u,{cache:'no-store'}); if(!r.ok) throw new Error(r.status); return r.json(); }
+async function loadTyphoons(){
+  try{
+    const list = await getJ(TC_BASE+'targetTc.json');
+    let past = []; try{ past = await getJ(TC_BASE+'pastTracks.json'); }catch(e){}
+    const out = [];
+    for(const t of list){
+      try{
+        const spec = await getJ(`${TC_BASE}${t.tropicalCyclone}/specifications.json`);
+        const title = spec.find(e=>e.part==='title') || {};
+        const an = spec.find(e=>e.advancedHours===0);
+        if(!an || !an.position) continue;
+        const mk = e => ({ h:e.advancedHours, pos:e.position.deg, time:toDate(e.validtime?.JST), pressure:e.pressure, wind:e.maximumWind?.sustained?.['m/s'], gust:e.maximumWind?.gust?.['m/s'],
+          intensity:e.intensity, scale:e.scale, cat:e.category?.en, course:e.course, speed:e.speed, loc:e.location, radius:e.probabilityCircleRadius?.km,
+          storm:(e.stormWarning||[]).map(x=>x.range?.km||0), gale:(e.galeWarning||[]).map(x=>x.range?.km||0) });
+        const fc = spec.filter(e=>e.advancedHours>0 && e.position).sort((a,b)=>a.advancedHours-b.advancedHours).map(mk);
+        const pt = past.find(p=>p.tropicalCyclone===t.tropicalCyclone);
+        const pre=[], ty=[];
+        if(pt) for(let k=1;k<=(pt.count||1);k++){ const tr = pt['track'+k]; if(tr){ pre.push(...(tr.preTyphoon||[])); ty.push(...(tr.typhoon||[])); } }
+        out.push({ id:t.tropicalCyclone, no:parseInt(String(t.typhoonNumber).slice(2),10), name:title.name?.en||'', nameJp:title.name?.jp||'', cat:title.category?.en||t.category,
+          issue:toDate(title.issue?.JST), an:mk(an), fc, pre, ty });
+      }catch(e){}
+    }
+    TC = out;
+    if(!TC.find(t=>t.id===tcSel)) tcSel = TC[0]?.id || null;
+    $('tcupd').textContent = 'All times are Japan Standard Time (UTC+9) · checked '+fmtH.format(new Date())+' JST';
+  }catch(e){ $('tcupd').textContent = 'Could not reach JMA just now. Will retry.'; }
+  renderTyphoon(); renderFront();
+}
+const toDate = s => s ? new Date(s) : null;
+function approach(t, home){
+  const pts = [t.an,...t.fc].filter(p=>p.pos && p.time);
+  let best = {d:Infinity,time:null};
+  for(let i=0;i<pts.length-1;i++){
+    const a=pts[i], b=pts[i+1], steps=Math.max(1,Math.round((b.time-a.time)/36e5));
+    for(let s=0;s<=steps;s++){ const f=s/steps, pos=[a.pos[0]+(b.pos[0]-a.pos[0])*f, a.pos[1]+(b.pos[1]-a.pos[1])*f], d=distKm(pos,home);
+      if(d<best.d) best = {d, time:new Date(a.time.getTime()+(b.time-a.time)*f)}; }
+  }
+  return best;
+}
+function ensureMap(){
+  if(tcMap || !window.L || !$('tcmap')) return;
+  tcMap = L.map('tcmap',{zoomControl:true, attributionControl:true}).setView([30,138],5);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:9,attribution:'© OpenStreetMap contributors'}).addTo(tcMap);
+  tcLayer = L.layerGroup().addTo(tcMap);
+}
+function typhoonShown(){ ensureMap(); if(tcMap){ tcMap.invalidateSize(); } renderTyphoon(true); }
+function renderTyphoon(refit){
+  setBadge('typhoon', TC.length);
+  const L0 = LOCS[state.loc] || LOCS[0], home = [L0.lat, L0.lon];
+  $('tcsel').innerHTML = TC.length>1 ? TC.map(t=>`<button type="button" data-tc="${esc(t.id)}" aria-pressed="${t.id===tcSel}">No. ${t.no} ${esc(t.name)}</button>`).join('') : '';
+  const t = TC.find(x=>x.id===tcSel);
+  ensureMap();
+  if(tcLayer) tcLayer.clearLayers();
+  if(tcMap && tcLayer) L.circleMarker(home,{radius:6,color:'#fff',weight:2,fillColor:'#0a6ea8',fillOpacity:1}).bindTooltip(placeShort(),{permanent:true,direction:'bottom',className:'tclabel'}).addTo(tcLayer);
+  if(!t){
+    $('tcsum').innerHTML = '<div class="empty" style="grid-column:1/-1;text-align:left;padding:6px 0">No active typhoons. JMA lists no tropical cyclones for the western Pacific right now.</div>';
+    $('tctable').innerHTML = '';
+    if(tcMap && refit!==false) tcMap.setView(home,6,{animate:false});
+    return;
+  }
+  const a = t.an, nowD = distKm(a.pos, home), ap = approach(t, home);
+  const inten = [TC_INT[a.intensity]||'', TC_SIZE[a.scale]||''].filter(Boolean).join(', ');
+  const course = COURSE[a.course] || a.course || '–';
+  const spd = a.speed?.['km/h'] ? a.speed['km/h']+'<small>km/h</small>' : (a.speed?.note?.en || 'Slow');
+  const rStorm = Math.max(0,...a.storm), rGale = Math.max(0,...a.gale);
+  const tiles = [
+    ['Typhoon', `No. ${t.no}`, `${esc(t.name)}${t.nameJp?' ('+esc(t.nameJp)+')':''} · ${esc(TC_CAT[t.cat]||t.cat||'')}`],
+    ['Strength', `${esc(a.pressure||'–')}<small>hPa</small>`, `${esc(inten||'Normal')} · max wind ${esc(a.wind||'–')} m/s, gusts ${esc(a.gust||'–')} m/s`],
+    ['Position now', `<span style="font-size:18px">${latS(a.pos[0])} ${lonS(a.pos[1])}</span>`, `${esc(glossTc(a.loc)||a.loc||'')} · as of ${jst(a.time)}`],
+    ['Moving', spd, `heading ${esc(course)}`],
+    ['Distance to '+esc(placeShort()), `${Math.round(nowD).toLocaleString()}<small>km</small>`, ap.time ? `closest in forecast about ${Math.round(ap.d).toLocaleString()} km, ${jst(ap.time)}` : ''],
+    ['Strong-wind areas', `${rStorm?rStorm:'–'}<small>${rStorm?'km':''}</small>`, `storm 25 m/s+ radius${rGale?` · gale 15 m/s+ radius ${rGale} km`:''}`]
+  ];
+  $('tcsum').innerHTML = tiles.map(x=>`<div class="tile"><span class="l">${x[0]}</span><span class="v">${x[1]}</span><span class="s">${x[2]}</span></div>`).join('');
+  const rows = [a,...t.fc];
+  $('tctable').innerHTML = '<thead><tr><th>Time (JST)</th><th>When</th><th>Position</th><th>Pressure</th><th>Max wind</th><th>Strength</th><th>Error radius</th></tr></thead><tbody>'
+    + rows.map(p=>`<tr><td>${jst(p.time)}</td><td>${p.h?'+'+p.h+' h':'now'}</td><td>${latS(p.pos[0])} ${lonS(p.pos[1])}</td><td>${esc(p.pressure||'–')} hPa</td><td>${esc(p.wind||'–')} m/s</td><td>${esc(TC_CAT[p.cat]||p.cat||'')}${TC_INT[p.intensity]?' · '+TC_INT[p.intensity]:''}</td><td>${p.radius?p.radius+' km':'–'}</td></tr>`).join('') + '</tbody>';
+  if(!tcMap || !tcLayer) return;
+  if(t.pre.length>1) L.polyline(t.pre,{color:'#6b7a89',weight:2,dashArray:'2 5'}).addTo(tcLayer);
+  if(t.ty.length>1) L.polyline(t.ty,{color:'#455a6b',weight:3}).addTo(tcLayer);
+  if(rGale) L.circle(a.pos,{radius:rGale*1000,color:'#e08a1e',weight:1,fillColor:'#e08a1e',fillOpacity:.08}).addTo(tcLayer);
+  if(rStorm) L.circle(a.pos,{radius:rStorm*1000,color:'#c62828',weight:1,fillColor:'#c62828',fillOpacity:.16}).addTo(tcLayer);
+  L.polyline([a.pos,...t.fc.map(p=>p.pos)],{color:'#c62828',weight:2,dashArray:'6 6'}).addTo(tcLayer);
+  t.fc.forEach(p=>{
+    if(p.radius) L.circle(p.pos,{radius:p.radius*1000,color:'#c62828',weight:1,dashArray:'3 4',fillColor:'#c62828',fillOpacity:.07}).addTo(tcLayer);
+    L.circleMarker(p.pos,{radius:5,color:'#c62828',weight:2,fillColor:'#fff',fillOpacity:1}).bindTooltip(fmtJs.format(p.time),{permanent:true,direction:'right',offset:[6,0],className:'tclabel'}).addTo(tcLayer);
+  });
+  L.circleMarker(a.pos,{radius:9,color:'#fff',weight:2,fillColor:'#c62828',fillOpacity:1}).bindTooltip(`No. ${t.no} ${t.name} · now`,{permanent:true,direction:'top',offset:[0,-8],className:'tclabel'}).addTo(tcLayer);
+  const key = t.id+'|'+(t.issue?t.issue.getTime():'');
+  if(refit===true || tcFit!==key){
+    tcFit = key;
+    const pts = [home, a.pos, ...t.fc.map(p=>p.pos), ...t.ty, ...t.pre];
+    tcMap.fitBounds(L.latLngBounds(pts).pad(0.15),{maxZoom:7,animate:false});
+  }
+}
+$('tcsel').addEventListener('click',e=>{ const b=e.target.closest('[data-tc]'); if(b){ tcSel=b.dataset.tc; renderTyphoon(true); renderFront(); } });
+function tcCards(){
+  if(!TC.length) return `<div class="story" data-go="typhoon" role="link" tabindex="0"><span class="kick">Typhoons</span><div class="hl">None active</div><span class="sub">JMA lists no tropical cyclones in the western Pacific.</span></div>`;
+  const L0 = LOCS[state.loc] || LOCS[0];
+  return TC.slice(0,2).map(t=>{
+    const d = distKm(t.an.pos,[L0.lat,L0.lon]), ap = approach(t,[L0.lat,L0.lon]);
+    return `<div class="story" data-go="typhoon" role="link" tabindex="0"><span class="kick">${esc(TC_CAT[t.cat]||'Typhoon')} No. ${t.no}</span>
+      <div class="hl">${esc(t.name)}${t.nameJp?' ('+esc(t.nameJp)+')':''}</div>
+      <span class="sub">${esc([TC_INT[t.an.intensity],t.an.pressure?t.an.pressure+' hPa':''].filter(Boolean).join(' · '))} · ${esc(glossTc(t.an.loc)||t.an.loc||'')}</span>
+      <span class="sub">${Math.round(d).toLocaleString()} km from ${esc(placeShort())} · closest in forecast about ${Math.round(ap.d).toLocaleString()} km, ${jst(ap.time)}</span></div>`;
+  }).join('');
+}
+
 /* ---------- front page ---------- */
 let WSUM = null;
 function renderFront(){
@@ -647,6 +808,7 @@ function renderFront(){
   } else {
     cards += `<div class="story" data-go="quakes" role="link" tabindex="0"><span class="kick">Earthquakes</span><div class="hl">${state.firstLoadDone?'None at this level in recent history':'Loading…'}</div><span class="sub">Open the Earthquakes tab to change the threshold.</span></div>`;
   }
+  cards += tcCards();
   if(WSUM){
     const w = WSUM, band = rainBand(w.pkVal)[1];
     cards += `<div class="story" data-go="weather" role="link" tabindex="0"><span class="kick">Rain · ${esc(placeShort())}</span>
@@ -671,6 +833,7 @@ $('front').addEventListener('keydown', e=>{ if(e.key==='Enter'){ const s=e.targe
 const SECTIONS = [
   {id:'front',   label:'Front page'},
   {id:'quakes',  label:'Earthquakes'},
+  {id:'typhoon', label:'Typhoon'},
   {id:'weather', label:'Weather'}
 ];
 function buildTabs(){
@@ -684,6 +847,7 @@ function showTab(id){
     $('tab-'+s.id)?.setAttribute('aria-selected', s.id===id);
   });
   store.set('tab', id);
+  if(id==='typhoon') setTimeout(typhoonShown, 60);
   if(location.hash !== '#'+id) history.replaceState(null,'','#'+id);
 }
 $('tabs').addEventListener('click', e=>{ const b=e.target.closest('[data-tab]'); if(b) showTab(b.dataset.tab); });
@@ -696,6 +860,8 @@ renderFront();
 loadHistory(0,true).then(()=>{ connectWS(); });
 loadWeather();
 setInterval(loadWeather, 10*60*1000);
+loadTyphoons();
+setInterval(loadTyphoons, 15*60*1000);
 </script>
 </body>
 </html>
