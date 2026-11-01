@@ -126,7 +126,7 @@ footer a{color:var(--accent)}
 <body>
 <div class="wrap">
   <header>
-    <h1>Japan Watch<small>Earthquakes across Japan · Tokyo weather</small></h1>
+    <h1>Japan Watch<small>Earthquakes across Japan · Nerima weather</small></h1>
     <div class="status">
       <span><span class="dot" id="dot"></span> <span id="stext">Connecting…</span></span>
       <span id="clock"></span>
@@ -280,14 +280,19 @@ const state = {
   wsOpen: false,
   open: new Set()
 };
+/* Weather places. Add or change entries here: n = menu name, short = label on cards, lat/lon = coordinates. */
 const LOCS = [
-  {n:'Central Tokyo (Shinjuku)',lat:35.6895,lon:139.6917},
-  {n:'Tokyo Station / Marunouchi',lat:35.6812,lon:139.7671},
-  {n:'Haneda / Tokyo Bay',lat:35.5494,lon:139.7798},
-  {n:'Tama (Hachioji)',lat:35.6664,lon:139.3160},
-  {n:'Ome / western mountains',lat:35.7878,lon:139.2759},
-  {n:'Izu Oshima',lat:34.7500,lon:139.3550}
+  {n:'Nerima (ward office)',short:'Nerima',lat:35.7356,lon:139.6517},
+  {n:'Nerima Station',short:'Nerima Stn',lat:35.7376,lon:139.6536},
+  {n:'Hikarigaoka',short:'Hikarigaoka',lat:35.7655,lon:139.6286},
+  {n:'Shakujii-koen',short:'Shakujii-koen',lat:35.7433,lon:139.5994},
+  {n:'Oizumi-gakuen',short:'Oizumi-gakuen',lat:35.7482,lon:139.5857},
+  {n:'Central Tokyo (Shinjuku)',short:'Shinjuku',lat:35.6895,lon:139.6917},
+  {n:'Tokyo Station / Marunouchi',short:'Tokyo Stn',lat:35.6812,lon:139.7671},
+  {n:'Haneda / Tokyo Bay',short:'Haneda',lat:35.5494,lon:139.7798},
+  {n:'My current location (GPS)',short:'My location',gps:true,lat:35.7356,lon:139.6517}
 ];
+const placeShort = () => LOCS[state.loc]?.short || 'Tokyo';
 
 /* ---------- sound & notifications ---------- */
 let actx = null;
@@ -469,7 +474,21 @@ $('btnTest').onclick = () => {
 };
 paintSound();
 $('loc').innerHTML = LOCS.map((l,i)=>`<option value="${i}"${i===state.loc?' selected':''}>${l.n}</option>`).join('');
-$('loc').onchange = e => { state.loc=+e.target.value; store.set('loc',state.loc); loadWeather(); };
+$('loc').onchange = e => {
+  state.loc = +e.target.value; store.set('loc',state.loc);
+  const L = LOCS[state.loc];
+  if(L.gps){
+    const saved = store.get('gps', null); if(saved){ L.lat=saved.lat; L.lon=saved.lon; }
+    if(navigator.geolocation) navigator.geolocation.getCurrentPosition(
+      p => { L.lat=+p.coords.latitude.toFixed(4); L.lon=+p.coords.longitude.toFixed(4); store.set('gps',{lat:L.lat,lon:L.lon}); loadWeather(); },
+      () => { $('wupd').textContent = '· location blocked, showing the last known spot'; loadWeather(); },
+      {timeout:10000});
+    else loadWeather();
+    return;
+  }
+  loadWeather();
+};
+(()=>{ const L=LOCS.find(x=>x.gps), s=store.get('gps',null); if(L&&s){ L.lat=s.lat; L.lon=s.lon; } })();
 setInterval(()=>{ $('clock').textContent = fmtD.format(new Date())+' · JST '+fmtH.format(new Date()); }, 1000);
 
 /* ---------- weather ---------- */
@@ -522,6 +541,7 @@ function renderWeather(){
   ];
   $('tiles').innerHTML = tiles.map(x=>`<div class="tile"><span class="l">${x[0]}</span><span class="v">${x[1]}</span><span class="s">${x[2]}</span></div>`).join('');
   $('wupd').textContent = '· updated '+fmtH.format(new Date());
+  $('hw').textContent = 'Weather · '+placeShort();
   WSUM = {temp:c.temperature_2m ?? h.temperature_2m[ni], past24, next24, next48, pkVal, pkT:t[pkI], gMax, gT:t[gI], snowPast, snowNext, wNow, gNow};
   renderFront();
 
@@ -629,17 +649,17 @@ function renderFront(){
   }
   if(WSUM){
     const w = WSUM, band = rainBand(w.pkVal)[1];
-    cards += `<div class="story" data-go="weather" role="link" tabindex="0"><span class="kick">Rain · Tokyo</span>
+    cards += `<div class="story" data-go="weather" role="link" tabindex="0"><span class="kick">Rain · ${esc(placeShort())}</span>
       <div class="hl">${w.next24>=0.5? n1(w.next24)+' mm expected in 24 h' : 'Dry for the next 24 h'}</div>
       <span class="sub">Last 24 h: ${n1(w.past24)} mm fell${w.pkVal>=0.5?` · heaviest hour ahead ${n1(w.pkVal)} mm/h (${band.toLowerCase()})`:''}</span></div>`;
-    cards += `<div class="story" data-go="weather" role="link" tabindex="0"><span class="kick">Wind · Tokyo</span>
+    cards += `<div class="story" data-go="weather" role="link" tabindex="0"><span class="kick">Wind · ${esc(placeShort())}</span>
       <div class="hl">Gusts up to ${n1(w.gMax)} m/s</div>
       <span class="sub">${WIND_WORD(w.gMax)} · ${fmtD.format(w.gT).split(' ')[0]} ${fmtH.format(w.gT)} · now ${n1(w.wNow)} m/s, ${n1(w.temp)} °C</span></div>`;
     if(w.snowNext>0 || w.snowPast>0){
-      cards += `<div class="story" data-go="weather" role="link" tabindex="0"><span class="kick">Snow · Tokyo</span><div class="hl">${n1(w.snowNext)} cm expected in 48 h</div><span class="sub">Last 24 h: ${n1(w.snowPast)} cm</span></div>`;
+      cards += `<div class="story" data-go="weather" role="link" tabindex="0"><span class="kick">Snow · ${esc(placeShort())}</span><div class="hl">${n1(w.snowNext)} cm expected in 48 h</div><span class="sub">Last 24 h: ${n1(w.snowPast)} cm</span></div>`;
     }
   } else {
-    cards += `<div class="story" data-go="weather" role="link" tabindex="0"><span class="kick">Weather · Tokyo</span><div class="hl">Loading…</div></div>`;
+    cards += `<div class="story" data-go="weather" role="link" tabindex="0"><span class="kick">Weather · ${esc(placeShort())}</span><div class="hl">Loading…</div></div>`;
   }
   el.innerHTML = cards;
 }
