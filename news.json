@@ -1,0 +1,101 @@
+{
+  "updated": "2026-11-03T08:50:00+09:00",
+  "sections": {
+    "world": [
+      {
+        "headline": "Russian strike on a Zaporizhzhia school kills 24 as both sides' alert apps are hacked",
+        "summary": "Ukrainian emergency services say Russian bombing hit a school in a village in the Zaporizhzhia region on Monday and killed 24 people. Separately, both Ukraine and Russia said their emergency alert apps were hacked overnight and pushed out false warnings of air raids and chemical or nuclear attacks.",
+        "sources": [{"name": "The Standard (HK), Morning Recap", "url": "https://www.thestandard.com.hk/news/article/347298/Morning-Recap-November-3-2026"}]
+      },
+      {
+        "headline": "Iran and the US trade 'intensive' messages as Hormuz disruption drains oil stocks",
+        "summary": "Iran says intensive exchanges with Washington are under way to avert war, and it has offered to reopen the Strait of Hormuz under strict conditions. ADNOC's chief executive says the world has drawn nearly 1 billion barrels from inventories since the US-Israeli war on Iran disrupted shipping, with diesel stocks at 35-year seasonal lows in some areas.",
+        "sources": [
+          {"name": "The Standard (HK), Morning Recap", "url": "https://www.thestandard.com.hk/news/article/347298/Morning-Recap-November-3-2026"},
+          {"name": "Taipei Times, World News Quick Take", "url": "https://www.taipeitimes.com/News/world/archives/2026/11/03/2003867078"}
+        ]
+      },
+      {
+        "headline": "South Korea: president's travel data leaked as Lee proposes a record 820.9 trillion won budget",
+        "summary": "Personal data of 168 people who travelled with President Lee Jae-myung, including passport numbers, was posted online; the presidential office has asked police to investigate and the foreign ministry is running its own probe. Lee also gave his budget speech to the National Assembly for a record 820.9 trillion won plan for next year, themed around spreading the benefits of growth more evenly.",
+        "sources": [
+          {"name": "SBS News (English), Morning Wide", "url": "https://news.sbs.co.kr/english/article.do?news_id=N1008827346"},
+          {"name": "The Standard (HK), Morning Recap", "url": "https://www.thestandard.com.hk/news/article/347298/Morning-Recap-November-3-2026"}
+        ]
+      },
+      {
+        "headline": "Indonesia's Supreme Court invalidates the vice president's school certificate",
+        "summary": "The court granted an appeal against the education ministry and overturned two lower-court rulings, invalidating the high-school equivalency certificate Vice President Gibran Rakabuming Raka used for his 2024 candidacy. It raises questions about whether he can stay in office or run in 2029, though removing him would need separate constitutional proceedings.",
+        "sources": [{"name": "Taipei Times, World News Quick Take", "url": "https://www.taipeitimes.com/News/world/archives/2026/11/03/2003867078"}]
+      },
+      {
+        "headline": "Britain moves to lengthen the wait for permanent settlement",
+        "summary": "The Labour government confirmed plans to make many foreign workers already in the UK wait longer before they can apply for permanent settlement.",
+        "sources": [{"name": "The Standard (HK), Morning Recap", "url": "https://www.thestandard.com.hk/news/article/347298/Morning-Recap-November-3-2026"}]
+      }
+    ],
+    "japan": [
+      {
+        "headline": "Japan's new national disaster management agency begins work",
+        "summary": "The agency, created under a law enacted in July, started operating on November 2 and has already called on the public to prepare for disasters. It is meant to shift the government's focus toward preparation and recovery as well as emergency response.",
+        "sources": [
+          {"name": "Nippon.com, news headlines", "url": "https://www.nippon.com/en/news/"},
+          {"name": "Nippon.com (Jiji), 'Japan to Launch National Disaster Management Agency Nov. 2'", "url": "https://www.nippon.com/en/news/yjj2026092500414/"}
+        ]
+      },
+      {
+        "headline": "Government and coalition weigh nearly doubling defense spending",
+        "summary": "Under Prime Minister Sanae Takaichi, the government and ruling coalition are considering ¥70-80 trillion in defense spending over five years, about 1.8 times the current plan of roughly ¥43 trillion. The figure could change as the budget is compiled and three security documents are revised; the Defense Ministry had no comment.",
+        "sources": [{"name": "Taipei Times, World News Quick Take", "url": "https://www.taipeitimes.com/News/world/archives/2026/11/03/2003867078"}]
+      },
+      {
+        "headline": "Diet debate on the tax-cut bill continues; opposition wants Takaichi present",
+        "summary": "Deliberations on the government's consumption tax cut bill are continuing in the Diet, with opposition parties demanding that the prime minister attend the debate herself.",
+        "sources": [{"name": "The Japan Times (Nov 1)", "url": "https://www.japantimes.co.jp/news/2026/11/01/japan/politics/takaichi-tax-cut-bill-deliberation/"}]
+      },
+      {
+        "headline": "Takaichi's personal rating falls to 40%, though foreign policy scores well",
+        "summary": "An Asahi Shimbun online survey with an Osaka University professor (668 respondents, October 9-18) put favorability of the prime minister at 40%, down 15 points from right after her cabinet launched. Her cabinet's policies were rated bad by 45% and good by 26%, but foreign policy was rated good by 57% against 17% bad. Politics and money fared worst, at 14% good and 56% bad.",
+        "sources": [{"name": "JKN (Korea), citing Asahi Shimbun survey", "url": "https://news.jkn.co.kr/editions/english/post/1064793"}]
+      },
+      {
+        "headline": "ANA and JAL post lower first-half profits as fuel costs rise",
+        "summary": "Both airline groups reported lower profits for the first half of the fiscal year, with higher fuel costs cited. It fits the wider energy squeeze from the Hormuz disruption described in the world section.",
+        "sources": [{"name": "Nippon.com, news headlines", "url": "https://www.nippon.com/en/news/"}]
+      }
+    ],
+    "us": [
+      {
+        "headline": "Midterms Tuesday: Democrats favored to take the House and a real shot at the Senate",
+        "summary": "Democrats lead the generic ballot by nearly 9 points and need only three seats for the House, though Republican-led redistricting in Southern states could limit gains. In the Senate they hold 47 seats and need 51; a 50-50 split goes to Vice President Vance. One analysis now rates Democrats as favored to flip the Senate, with the caveat that polls can be wrong. A Democratic House could block the agenda and run investigations; a Democratic Senate could block Supreme Court nominees.",
+        "sources": [{"name": "Yahoo News, 'The 2026 midterms are tomorrow...'", "url": "https://www.yahoo.com/news/politics/article/the-2026-midterms-are-tomorrow-and-the-final-polls-are-here-which-party-has-a-better-chance-of-winning-150348522.html"}]
+      },
+      {
+        "headline": "Administration asks Supreme Court to block counting of some California mail ballots",
+        "summary": "The Trump administration asked the Supreme Court to temporarily stop California from counting mail-in ballots from more than 20,000 registered voters that federal officials allege are likely non-citizens. President Trump is also pursuing legal efforts to intervene in ballot counting more broadly.",
+        "sources": [{"name": "The Standard (HK), Morning Recap", "url": "https://www.thestandard.com.hk/news/article/347298/Morning-Recap-November-3-2026"}]
+      },
+      {
+        "headline": "Trump goes into the midterms with approval near 38%",
+        "summary": "The Silver Bulletin average has Trump at 38% approve and 59% disapprove. The New York Times data show the second-lowest approval going into a midterm since 1946, behind only Truman. On inflation, 25% approve and 70% disapprove.",
+        "sources": [{"name": "Yahoo News, 'The 2026 midterms are tomorrow...'", "url": "https://www.yahoo.com/news/politics/article/the-2026-midterms-are-tomorrow-and-the-final-polls-are-here-which-party-has-a-better-chance-of-winning-150348522.html"}]
+      },
+      {
+        "headline": "Report of a Chinese spy plot targeting Nvidia's CEO draws denials",
+        "summary": "A New York Times report said Nvidia chief Jensen Huang was seen as the target of a Chinese espionage plot. Beijing called it groundless speculation and Nvidia denied the report.",
+        "sources": [
+          {"name": "Euronews", "url": "https://www.euronews.com/2026/10/30/china-rejects-report-of-spy-plot-targeting-nvidias-jensen-huang"},
+          {"name": "Taipei Times, World News Quick Take", "url": "https://www.taipeitimes.com/News/world/archives/2026/11/03/2003867078"}
+        ]
+      },
+      {
+        "headline": "Space science: NASA's Lucy reaches the Trojan asteroids; Webb studies comet 3I/ATLAS",
+        "summary": "NASA's Lucy spacecraft has reached the Trojan asteroid region five years after launch. Separately, new James Webb Space Telescope observations of the interstellar comet 3I/ATLAS shed light on its origins and on planet-forming conditions around other stars.",
+        "sources": [
+          {"name": "NASA news", "url": "https://www.nasa.gov/news/"},
+          {"name": "Space.com", "url": "https://www.space.com/news"}
+        ]
+      }
+    ]
+  }
+}
