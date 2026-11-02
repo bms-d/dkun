@@ -719,10 +719,9 @@ function approach(t, home){
 function ensureMap(){
   if(tcMap || !window.L || !$('tcmap')) return;
   tcMap = L.map('tcmap',{zoomControl:true, attributionControl:true}).setView([30,138],5);
-  /* CARTO basemaps label places in English (Latin script). Dark version when the page is dark. */
-  const dark = document.documentElement.dataset.theme==='dark' || (document.documentElement.dataset.theme!=='light' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
-  L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/${dark?'dark_all':'voyager'}/{z}/{x}/{y}{r}.png`,
-    {maxZoom:9, subdomains:'abcd', attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>'}).addTo(tcMap);
+  /* Esri World Street Map: free, no key, place names in English */
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+    {maxZoom:9, attribution:'Tiles © Esri — Source: Esri, HERE, Garmin, OpenStreetMap contributors'}).addTo(tcMap);
   tcLayer = L.layerGroup().addTo(tcMap);
 }
 function typhoonShown(){ ensureMap(); if(tcMap){ tcMap.invalidateSize(); } renderTyphoon(true); }
